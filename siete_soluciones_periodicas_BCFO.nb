@@ -1,0 +1,595 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<!DOCTYPE Notebook[
+  <!ENTITY nbsp "&#160;">
+]>
+<Notebook>
+
+<NotebookContent>
+
+<CellGroup>
+
+<CellGroupData>
+
+<Cell style="Title" cellID="1">
+<CellContent>
+<Text data="Siete soluciones peri&#243;dicas BCFO: u_i(t) en [0, 2&#960;], &#956;=1.81363">
+</Text>
+</CellContent>
+<CellTags/>
+</Cell>
+
+<Cell style="Text" cellID="2">
+<CellContent>
+<Text data="Notebook de Mathematica que calcula y grafica las siete soluciones peri&#243;dicas del sistema BCFO.
+
+El c&#243;digo original en Python ha sido traducido a Mathematica, manteniendo la misma l&#243;gica:
+
+1. C&#225;lculo del flujo af&#237;n exacto por tramos (funci&#243;n phi)
+2. Detecci&#243;n de eventos (cruces de niveles y cambios de zona)
+3. Mapa de Poincar&#233; para encontrar ra&#237;ces peri&#243;dicas
+4. Muestreo y graficaci&#243;n de las &#243;rbitas
+
+Las &#243;rbitas estables se muestran con l&#237;neas continuas y las inestables con l&#237;neas discontinuas.">
+</Text>
+</CellContent>
+</Cell>
+
+</CellGroupData>
+</CellGroup>
+
+<CellGroup>
+
+<CellGroupData>
+
+<Cell style="Section" cellID="3">
+<CellContent>
+<Text data="Par&#225;metros y constantes">
+</Text>
+</CellContent>
+</Cell>
+
+<Cell style="Code" cellID="4">
+<CellContent>
+<Text data="(* Constantes del sistema BCFO *)
+a = 9.0;
+b = 1.5;
+muStar = 1.81363;
+tEnd = 2 Pi;
+
+(* Directorios de salida - se usa el directorio actual *)
+outputDir = NotebookDirectory[];">
+</Text>
+</CellContent>
+</Cell>
+
+</CellGroupData>
+</CellGroup>
+
+<CellGroup>
+
+<CellGroupData>
+
+<Cell style="Section" cellID="5">
+<CellContent>
+<Text data="Funciones del flujo">
+</Text>
+</CellContent>
+</Cell>
+
+<Cell style="Subsection" cellID="6">
+<CellContent>
+<Text data="Flujo exacto por tramos">
+</Text>
+</CellContent>
+</Cell>
+
+<Cell style="Code" cellID="7">
+<CellContent>
+<Text data="(*
+Flujo exacto por tramos para el sistema BCFO.
+phi[t, t0, x0, mu, zone] da la posici&#243;n en el tiempo t 
+partiendo de (t0, x0) en la zona especificada.
+*)
+ClearAll[phi];
+phi[t_, t0_, x0_, mu_, zone_] := Module[{c, d, steady0, steadyt},
+  c = If[zone == 0, -1.5, 9.0];
+  d = If[zone == 0, 0.0, If[zone == -1, 10.5, -10.5]];
+  steady0 = -d/c + mu*(c*Sin[t0] - Cos[t0])/(1 + c*c);
+  steadyt = -d/c + mu*(c*Sin[t] - Cos[t])/(1 + c*c);
+  steadyt + (x0 - steady0)*Exp[-c*(t - t0)]
+]">
+</Text>
+</CellContent>
+</Cell>
+
+<Cell style="Subsection" cellID="8">
+<CellContent>
+<Text data="Velocidad">
+</Text>
+</CellContent>
+</Cell>
+
+<Cell style="Code" cellID="9">
+<CellContent>
+<Text data="(*
+Velocidad del flujo en el tiempo t.
+*)
+ClearAll[velocity];
+velocity[t_, t0_, x0_, mu_, zone_] := Module[{c, d},
+  c = If[zone == 0, -1.5, 9.0];
+  d = If[zone == 0, 0.0, If[zone == -1, 10.5, -10.5]];
+  -c*phi[t, t0, x0, mu, zone] - d + mu*Sin[t]
+]">
+</Text>
+</CellContent>
+</Cell>
+
+</CellGroupData>
+</CellGroup>
+
+<CellGroup>
+
+<CellGroupData>
+
+<Cell style="Section" cellID="10">
+<CellContent>
+<Text data="Funciones de b&#250;squeda de ra&#237;ces">
+</Text>
+</CellContent>
+</Cell>
+
+<Cell style="Code" cellID="11">
+<CellContent>
+<Text data="(*
+B&#250;squeda de ra&#237;z para velocidad cero usando bisecci&#243;n.
+*)
+ClearAll[zeroVelBisect];
+zeroVelBisect[a_, b_, t0_, x0_, mu_, zone_] := Module[{fa, m, fm},
+  fa = velocity[a, t0, x0, mu, zone];
+  Do[
+    m = 0.5*(a + b);
+    fm = velocity[m, t0, x0, mu, zone];
+    If[fm*fa > 0, a = m; fa = fm, b = m];
+    , {46}];
+  0.5*(a + b)
+]">
+</Text>
+</CellContent>
+</Cell>
+
+<Cell style="Code" cellID="12">
+<CellContent>
+<Text data="(*
+B&#250;squeda de ra&#237;z para posici&#243;n = level usando bisecci&#243;n.
+*)
+ClearAll[zeroXBisect];
+zeroXBisect[a_, b_, t0_, x0_, mu_, zone_, level_] := Module[{fa, m, fm},
+  fa = phi[a, t0, x0, mu, zone] - level;
+  Do[
+    m = 0.5*(a + b);
+    fm = phi[m, t0, x0, mu, zone] - level;
+    If[fm*fa > 0, a = m; fa = fm, b = m];
+    , {46}];
+  0.5*(a + b)
+]">
+</Text>
+</CellContent>
+</Cell>
+
+</CellGroupData>
+</CellGroup>
+
+<CellGroup>
+
+<CellGroupData>
+
+<Cell style="Section" cellID="13">
+<CellContent>
+<Text data="Detecci&#243;n de eventos">
+</Text>
+</CellContent>
+</Cell>
+
+<Cell style="Code" cellID="14">
+<CellContent>
+<Text data="(*
+Detecta cruces de niveles en el intervalo [ta, tb].
+Devuelve {tiempo del primer cruce, nivel alcanzado}.
+*)
+ClearAll[crossing];
+crossing[ta_, xa_, tb_, xb_, t0_, x0_, mu_, zone_] := Module[
+  {count, first = 0, levelHit = 0, level, fa, fb, root},
+  count = If[zone == 0, 2, 1];
+  Do[
+    level = If[zone == 0, 2*k - 1, zone];
+    fa = xa - level;
+    fb = xb - level;
+    If[fa*fb < 0 || (fb == 0 && fa != 0),
+      root = zeroXBisect[ta, tb, t0, x0, mu, zone, level];
+      If[first == 0 || root < first,
+        first = root;
+        levelHit = Round[level];
+      ];
+    ];
+    , {k, 1, count}];
+  {first, levelHit}
+]">
+</Text>
+</CellContent>
+</Cell>
+
+<Cell style="Code" cellID="15">
+<CellContent>
+<Text data="(*
+Encuentra el pr&#243;ximo evento (cruce de nivel o final del intervalo).
+Devuelve {tiempo del evento, nivel alcanzado}.
+*)
+ClearAll[nextEvent];
+nextEvent[t0_, x0_, mu_, zone_] := Module[
+  {h, steps, ta, dva, leftT = t0, leftX = x0, tb, dvb, ti, xi, root, hit, endX},
+  h = 0.065;
+  steps = Ceiling[(tEnd - t0)/h];
+  If[steps <= 0, Return[{tEnd, 0}]];
+  ta = t0;
+  dva = velocity[ta, t0, x0, mu, zone];
+  Do[
+    tb = t0 + (tEnd - t0)*i/steps;
+    dvb = velocity[tb, t0, x0, mu, zone];
+    If[dva*dvb < 0,
+      ti = zeroVelBisect[ta, tb, t0, x0, mu, zone];
+      xi = phi[ti, t0, x0, mu, zone];
+      {root, hit} = crossing[leftT, leftX, ti, xi, t0, x0, mu, zone];
+      If[root > 0, Return[{root, hit}]];
+      leftT = ti;
+      leftX = xi;
+    ];
+    ta = tb;
+    dva = dvb;
+    , {i, 1, steps}];
+  endX = phi[tEnd, t0, x0, mu, zone];
+  {root, hit} = crossing[leftT, leftX, tEnd, endX, t0, x0, mu, zone];
+  If[root > 0, {root, hit}, {tEnd, 0}]
+]">
+</Text>
+</CellContent>
+</Cell>
+
+</CellGroupData>
+</CellGroup>
+
+<CellGroup>
+
+<CellGroupData>
+
+<Cell style="Section" cellID="16">
+<CellContent>
+<Text data="Mapa de Poincar&#233;">
+</Text>
+</CellContent>
+</Cell>
+
+<Cell style="Code" cellID="17">
+<CellContent>
+<Text data="(*
+Mapa de Poincar&#233;: P(y) - y = 0.
+Devuelve {P(y) - y, multiplicador de Floquet (log)}.
+*)
+ClearAll[returnMap];
+returnMap[x0_, mu_] := Module[{t = 0, x = x0, zone, logMultiplier = 0, te, level, speed},
+  zone = If[Abs[x] < 1, 0, If[x <= -1, -1, 1]];
+  Do[
+    {te, level} = nextEvent[t, x, mu, zone];
+    logMultiplier += If[zone == 0, b, -a]*(te - t);
+    If[level == 0,
+      Return[{phi[tEnd, t, x, mu, zone] - x0, logMultiplier}]
+    ];
+    speed = velocity[te, t, x, mu, zone];
+    t = te;
+    x = level;
+    zone = If[(level == 1 && speed < 0) || (level == -1 && speed > 0), 0, level];
+    , {28}];
+  {NaN, NaN}
+]">
+</Text>
+</CellContent>
+</Cell>
+
+</CellGroupData>
+</CellGroup>
+
+<CellGroup>
+
+<CellGroupData>
+
+<Cell style="Section" cellID="18">
+<CellContent>
+<Text data="B&#250;squeda de las siete ra&#237;ces peri&#243;dicas">
+</Text>
+</CellContent>
+</Cell>
+
+<Cell style="Code" cellID="19">
+<CellContent>
+<Text data="(*
+Encuentra las siete ra&#237;ces peri&#243;dicas resolviendo P(y) - y = 0.
+Usa el intervalo y ∈ [-1.15, -0.53] con 6201 puntos.
+*)
+ClearAll[getSevenRoots];
+getSevenRoots[mu_: muStar] := Module[{y, d, out = {}},
+  (* Crear la malla de puntos *)
+  y = Table[i, {i, -1.15, -0.53, 0.0001}];
+  
+  (* Evaluar P(y) - y en cada punto *)
+  Print[&quot;Calculando valores del mapa de Poincaré...&quot;];
+  d = Table[returnMap[z, mu][[1]], {z, y}];
+  
+  (* Buscar cambios de signo *)
+  Print[&quot;Buscando raíces...&quot;];
+  Do[
+    If[d[[i]]*d[[i+1]] < 0,
+      (* Usar FindRoot para refinar la raíz *)
+      z = x /. FindRoot[returnMap[x, mu][[1]] == 0, {x, y[[i]], y[[i+1]]}, 
+                       Method -> &quot;Brent&quot;, AccuracyGoal -> 15, PrecisionGoal -> 15];
+      AppendTo[out, z];
+      Print[&quot;  Encontrada raíz &quot; <> ToString[Length[out]] <> &quot;: &quot; <> ToString[z]];
+    ];
+    , {i, 1, Length[y] - 1}];
+  
+  Print[&quot;Encontradas &quot; <> ToString[Length[out]] <> &quot; raíces periódicas.&quot;];
+  out
+]">
+</Text>
+</CellContent>
+</Cell>
+
+</CellGroupData>
+</CellGroup>
+
+<CellGroup>
+
+<CellGroupData>
+
+<Cell style="Section" cellID="20">
+<CellContent>
+<Text data="Muestreo de &#243;rbitas peri&#243;dicas">
+</Text>
+</CellContent>
+</Cell>
+
+<Cell style="Code" cellID="21">
+<CellContent>
+<Text data="(*
+Devuelve los tramos (t0, t1, x0_tramo, zona) de la &#243;rbita peri&#243;dica.
+*)
+ClearAll[periodicOrbitSegments];
+periodicOrbitSegments[x0_, mu_: muStar, maxEvents_: 28] := Module[
+  {t = 0, x = x0, zone, segments = {}, te, level, speed},
+  zone = If[Abs[x] < 1, 0, If[x <= -1, -1, 1]];
+  Do[
+    {te, level} = nextEvent[t, x, mu, zone];
+    AppendTo[segments, {t, te, x, zone}];
+    If[level == 0, Break[]];
+    speed = velocity[te, t, x, mu, zone];
+    t = te;
+    x = level;
+    zone = If[(level == 1 && speed < 0) || (level == -1 && speed > 0), 0, level];
+    , {maxEvents}];
+  If[segments[[-1, 2]] != tEnd, 
+    Message[periodicOrbitSegments::maxEvents, &quot;Se alcanzó el número máximo de eventos.&quot;]];
+  segments
+]">
+</Text>
+</CellContent>
+</Cell>
+
+<Cell style="Code" cellID="22">
+<CellContent>
+<Text data="(*
+Muestrea una soluci&#243;n peri&#243;dica en [0, 2*pi] usando el flujo exacto por tramos.
+Si transformed = True, aplica la transformaci&#243;n u -> u + mu*cos(t).
+*)
+ClearAll[samplePeriodicOrbit];
+samplePeriodicOrbit[x0_, mu_: muStar, totalPoints_: 2400, transformed_: False] := Module[
+  {segments, tsAll = {}, xsAll = {}, totalTime, t0, t1, xStart, zone, dt, nLocal, tLocal, xLocal, k},
+  segments = periodicOrbitSegments[x0, mu];
+  totalTime = Total[(#[[2]] - #[[1]]) &amp; /@ segments];
+  totalTime = If[totalTime > 0, totalTime, tEnd];
+  
+  Do[
+    {t0, t1, xStart, zone} = segments[[k]];
+    dt = t1 - t0;
+    nLocal = Max[2, Round[totalPoints*dt/totalTime]];
+    tLocal = Table[i, {i, t0, t1, dt/(nLocal - 1)}];
+    If[k > 1, tLocal = Rest[tLocal]];
+    xLocal = Table[phi[t, t0, xStart, mu, zone], {t, tLocal}];
+    AppendTo[tsAll, tLocal];
+    AppendTo[xsAll, xLocal];
+    , {k, 1, Length[segments]}];
+  
+  {Flatten[tsAll], 
+   If[transformed, Flatten[xsAll] + mu*Cos[Flatten[tsAll]], Flatten[xsAll]]}
+]">
+</Text>
+</CellContent>
+</Cell>
+
+</CellGroupData>
+</CellGroup>
+
+<CellGroup>
+
+<CellGroupData>
+
+<Cell style="Section" cellID="23">
+<CellContent>
+<Text data="Graficaci&#243;n">
+</Text>
+</CellContent>
+</Cell>
+
+<Cell style="Code" cellID="24">
+<CellContent>
+<Text data="(*
+Pinta las siete soluciones peri&#243;dicas en [0, 2*pi].
+Las &#243;rbitas estables se muestran con l&#237;neas continuas y las inestables con discontinuas.
+*)
+ClearAll[plotSevenPeriodicSolutions];
+plotSevenPeriodicSolutions[mu_: muStar, transformed_: False, 
+                           pngName_: Automatic, pdfName_: Automatic] := Module[
+  {roots, plots, t, u, stable, logm, label, i, root, g},
+  
+  (* Obtener las ra&#237;ces *)
+  roots = getSevenRoots[mu];
+  
+  (* Generar los gr&#225;ficos para cada &#243;rbita *)
+  plots = {};
+  Do[
+    {t, u} = samplePeriodicOrbit[root, mu, 2600, transformed];
+    {_, logm} = returnMap[root, mu];
+    stable = logm < 0;
+    label = ToString[i] <> &quot; (&quot; <> If[stable, &quot;estable&quot;, &quot;inestable&quot;] <> &quot;)&quot;;
+    AppendTo[plots, 
+      {If[stable, AbsoluteThickness[1.8], {AbsoluteThickness[1.8], Dashed}], 
+       Line[Transpose[{t, u}]]}
+    ];
+    , {i, 1, Length[roots]}, {root, roots}];
+  
+  g = Graphics[plots, 
+    Axes -> True, 
+    PlotRange -> All, 
+    AspectRatio -> 0.62,
+    AxesLabel -> {&quot;t&quot;, If[transformed, &quot;U(t)&quot;, &quot;u(t)&quot;]},
+    PlotLabel -> &quot;Siete soluciones peri&#243;dicas para \[Mu] = &quot; <> ToString[mu],
+    GridLines -> Automatic, 
+    GridLinesStyle -> LightGray,
+    ImageSize -> {800, 500},
+    PlotRangePadding -> {0.05, 0.05}
+  ];
+  
+  (* A&#241;adir leyenda *)
+  legendEntries = Table[
+    {If[returnMap[roots[[i]], mu][[2]] < 0, AbsoluteThickness[1.8], {AbsoluteThickness[1.8], Dashed}], 
+     ToString[i] <> &quot; (&quot; <> If[returnMap[roots[[i]], mu][[2]] < 0, &quot;estable&quot;, &quot;inestable&quot;] <> &quot;)&quot;},
+    {i, 1, Length[roots]}
+  ];
+  
+  g = Legended[g, 
+    LineLegend[legendEntries[[All, 1]], legendEntries[[All, 2]], 
+     LegendLayout -> {&quot;Column&quot;, 2}, LegendFunction -> &quot;Panel&quot;]];
+  
+  (* Exportar a PNG y PDF *)
+  If[pngName === Automatic, 
+    pngName = If[transformed, &quot;siete_soluciones_periodicas_transformada.png&quot;, 
+                 &quot;siete_soluciones_periodicas_BCFO.png&quot;]];
+  If[pdfName === Automatic, 
+    pdfName = If[transformed, &quot;siete_soluciones_periodicas_transformada.pdf&quot;, 
+                 &quot;siete_soluciones_periodicas_BCFO.pdf&quot;]];
+  
+  Export[FileNameJoin[{outputDir, pngName}], g, &quot;PNG&quot;, ImageResolution -> 220];
+  Export[FileNameJoin[{outputDir, pdfName}], g, &quot;PDF&quot;];
+  
+  Print[&quot;Gr&#225;fico PNG guardado en: &quot;, FileNameJoin[{outputDir, pngName}]];
+  Print[&quot;Gr&#225;fico PDF guardado en: &quot;, FileNameJoin[{outputDir, pdfName}]];
+  
+  {g, roots, pngName, pdfName}
+]">
+</Text>
+</CellContent>
+</Cell>
+
+</CellGroupData>
+</CellGroup>
+
+<CellGroup>
+
+<CellGroupData>
+
+<Cell style="Section" cellID="25">
+<CellContent>
+<Text data="Ejecuci&#243;n principal">
+</Text>
+</CellContent>
+</Cell>
+
+<Cell style="Code" cellID="26">
+<CellContent>
+<Text data="(*
+Funcion principal que genera y muestra las siete soluciones peri&#243;dicas.
+*)
+ClearAll[main];
+main[] := Module[{fig, roots, pngPath, pdfPath, i, y, errorPeriodicidad, logMultiplicador, tipo},
+  
+  Print[&quot;=&quot; <> StringRepeat[&quot;=&quot;, 60]];
+  Print[&quot;Siete soluciones peri&#243;dicas BCFO para \[Mu] = &quot; <> ToString[muStar]];
+  Print[&quot;=&quot; <> StringRepeat[&quot;=&quot;, 60]];
+  
+  (* Calcular y graficar *)
+  {fig, roots, pngPath, pdfPath} = plotSevenPeriodicSolutions[
+    mu -> muStar, 
+    transformed -> False,
+    pngName -> &quot;siete_soluciones_periodicas_BCFO.png&quot;,
+    pdfName -> &quot;siete_soluciones_periodicas_BCFO.pdf&quot;
+  ];
+  
+  (* Mostrar resultados *)
+  Print[&quot;
+Resultados:&quot;];
+  Print[StringForm[&quot;`1`	`2`	`3`	`4`&quot;, 
+          &quot;Nº&quot;, &quot;u(0)&quot;, &quot;Tipo&quot;, &quot;P(y)-y&quot;]];
+  Print[StringRepeat[&quot;-&quot;, 60]];
+  
+  Do[
+    y = roots[[i]];
+    {errorPeriodicidad, logMultiplicador} = returnMap[y, muStar];
+    tipo = If[logMultiplicador < 0, &quot;estable&quot;, &quot;inestable&quot;];
+    Print[StringForm[&quot;`1`	`2`	`3`	`4`&quot;, 
+            i, NumberForm[y, {12, 12}], tipo, ScientificForm[errorPeriodicidad, 2]]];
+    , {i, 1, Length[roots]}];
+  
+  If[Length[roots] != 7, 
+    Print[&quot;
+AVISO: se han encontrado &quot; <> ToString[Length[roots]] <> &quot; ra&#237;ces, no siete.&quot;]];
+  
+  Print[&quot;
+Gr&#225;fico PNG: &quot;, pngPath];
+  Print[&quot;Gr&#225;fico PDF: &quot;, pdfPath];
+  
+  (* Mostrar el gr&#225;fico *)
+  fig
+]">
+</Text>
+</CellContent>
+</Cell>
+
+<Cell style="Code" cellID="27">
+<CellContent>
+<Text data="(*
+Ejecutar el c&#243;digo principal.
+NOTA: Este c&#225;lculo puede tardar varios minutos debido a la b&#250;squeda de ra&#237;ces.
+*)
+Print[&quot;Iniciando c&#225;lculo...&quot;];
+AbsoluteTiming[main[];]">
+</Text>
+</CellContent>
+</Cell>
+
+</CellGroupData>
+</CellGroup>
+
+</NotebookContent>
+
+<WindowSize>{1000, 700}</WindowSize>
+<WindowMargins>{{0, 0}, {0, 0}}</WindowMargins>
+<WindowElements>
+<MenuBar/>
+<ToolBar/>
+</WindowElements>
+
+<FrontEndVersion>13.3</FrontEndVersion>
+<StyleDefinitions>
+<Style>
+<Option>Default</Option>
+</Style>
+</StyleDefinitions>
+
+</Notebook>
